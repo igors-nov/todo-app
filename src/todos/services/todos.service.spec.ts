@@ -1,16 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ListService } from './lists.service';
+import { TodoService } from './todos.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { List } from './entities/list.entity';
+import { Todo } from '../entities/todo.entity';
 import { Repository } from 'typeorm';
+import { List } from '../../lists/entities/list.entity';
 
-describe('ListService', () => {
-  let service: ListService;
+describe('TodoService', () => {
+  let service: TodoService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ListService,
+        TodoService,
+        {
+          provide: getRepositoryToken(Todo),
+          useClass: Repository,
+        },
         {
           provide: getRepositoryToken(List),
           useClass: Repository,
@@ -18,7 +23,7 @@ describe('ListService', () => {
       ],
     }).compile();
 
-    service = module.get<ListService>(ListService);
+    service = module.get<TodoService>(TodoService);
   });
 
   it('should be defined', () => {

@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ListController } from './lists.controller';
-import { ListService } from './lists.service';
+import { ListService } from '../services/lists.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { List } from './entities/list.entity';
+import { List } from '../entities/list.entity';
 import { Repository } from 'typeorm';
-import { TodoService } from '../todos/todos.service';
-import { Todo } from '../todos/entities/todo.entity';
+import { TodoService } from '../../todos/todos.service';
+import { Todo } from '../../todos/entities/todo.entity';
 
 describe('ListController', () => {
   let controller: ListController;

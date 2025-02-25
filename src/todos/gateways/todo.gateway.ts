@@ -5,9 +5,9 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
-import { TodoService } from '../todos.service';
+import { TodoService } from '../services/todos.service';
 import { Todo } from '../entities/todo.entity';
-import { ListService } from 'src/lists/lists.service';
+import { ListService } from '../../lists/services/lists.service';
 
 //TODO: Setup cors correctly
 @WebSocketGateway({ cors: true })

@@ -1,6 +1,6 @@
 import { Body, Controller, Param, Post } from '@nestjs/common';
-import { TodoService } from './todos.service';
-import { ListService } from 'src/lists/lists.service';
+import { TodoService } from '../services/todos.service';
+import { ListService } from '../../lists/services/lists.service';
 import { ListProtection } from 'src/lists/entities/list.entity';
 
 @Controller('todos')

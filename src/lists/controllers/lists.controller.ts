@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Param, Delete } from '@nestjs/common';
-import { ListService } from './lists.service';
-import { List, ListProtection } from './entities/list.entity';
+import { ListService } from '../services/lists.service';
+import { List, ListProtection } from '../entities/list.entity';
 import { plainToInstance } from 'class-transformer';
-import { CreateListDto } from './dto/createList.dto';
+import { CreateListDto } from '../dto/createList.dto';
 
 @Controller('lists')
 export class ListController {

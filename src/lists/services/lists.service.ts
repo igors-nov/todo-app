@@ -5,9 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
-import { List, ListProtection } from './entities/list.entity';
+import { List, ListProtection } from '../entities/list.entity';
 import * as bcrypt from 'bcrypt';
-import { CreateListDto } from './dto/createList.dto';
+import { CreateListDto } from '../dto/createList.dto';
 
 @Injectable()
 export class ListService {

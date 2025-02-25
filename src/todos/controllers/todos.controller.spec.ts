@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TodoController } from './todos.controller';
-import { TodoService } from './todos.service';
+import { TodoService } from '../services/todos.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Todo } from './entities/todo.entity';
-import { List } from '../lists/entities/list.entity';
+import { Todo } from '../entities/todo.entity';
+import { List } from '../../lists/entities/list.entity';
 
 describe('TodoController', () => {
   let controller: TodoController;
