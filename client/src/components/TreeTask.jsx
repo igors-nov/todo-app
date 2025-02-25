@@ -25,7 +25,7 @@ export default function TreeTask(params) {
         )}
       </div>
       <div className="mt-2 ml-6">
-        <div onClick={() => handleEditDescription(todo.id, todo.description)} className="cursor-pointer disable-tailwind">
+        <div onClick={() => handleEditDescription(todo.id, todo.description)} style={{ whiteSpace: 'pre-wrap' }} className="cursor-pointer disable-tailwind">
           {todo.description && <ReactMarkdown>{todo.description}</ReactMarkdown>}
           {!todo.description && (list.protection === 1 || passwordAccepted) && !list.frozen && <p className="text-gray-500">Click to add a description...</p>}
         </div>
