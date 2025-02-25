@@ -51,3 +51,7 @@ Front-end is located in project sub-folder `./client`.
 ```bash
 $ npm run test
 ```
+
+## Live Demo
+
+Live running demo can be viewed here - http://161.35.18.6/
