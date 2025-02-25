@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+button {
+  cursor: pointer;
+}
+
+.disable-tailwind * {
+  font-family: revert !important;
+  font-size: revert !important;
+  font-weight: revert !important;
+  margin: revert !important;
+  padding: revert !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  list-style: revert !important;
+}
