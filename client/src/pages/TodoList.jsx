@@ -184,7 +184,7 @@ const TodoList = () => {
       return;
     }
 
-    socket.emit('updateTodo', { id, description: tempDescription });
+    socket.emit('updateTodo', { id, listId: list?.id, description: tempDescription, password });
     setEditingDescriptionId(null);
   };
 

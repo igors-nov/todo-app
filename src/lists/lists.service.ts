@@ -69,7 +69,10 @@ export class ListService {
     password: string,
     enableException = true,
   ): Promise<boolean> {
-    const result = await bcrypt.compare(password, list.password);
+    const result =
+      !password || password.length === 0
+        ? false
+        : await bcrypt.compare(password, list.password);
 
     if (!result && enableException) {
       throw new ForbiddenException();
