@@ -1,8 +1,17 @@
-import { Controller, Post, Body, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+  Get,
+} from '@nestjs/common';
 import { ListService } from '../services/lists.service';
 import { List, ListProtection } from '../entities/list.entity';
 import { plainToInstance } from 'class-transformer';
 import { CreateListDto } from '../dto/createList.dto';
+import { PermissionGuard } from 'src/auth/permission.guard';
 
 @Controller('lists')
 export class ListController {
@@ -13,57 +22,35 @@ export class ListController {
     return this.listService.create(createListDto);
   }
 
-  @Post(':uniqueUrl/password')
-  async passwordCheck(
+  @Post(':uniqueUrl/login')
+  async login(
     @Param('uniqueUrl') uniqueUrl: string,
     @Body('password') password: string,
   ) {
     const list = await this.listService.findOne(uniqueUrl);
 
-    return this.listService.checkPassword(list, password, false);
+    return this.listService.login(list, password);
   }
 
+  @UseGuards(PermissionGuard(ListProtection.PasswordProtected))
   @Post(':uniqueUrl/freeze')
-  async freeze(
-    @Param('uniqueUrl') uniqueUrl: string,
-    @Body('password') password: string,
-  ) {
+  async freeze(@Param('uniqueUrl') uniqueUrl: string) {
     const list = await this.listService.findOne(uniqueUrl);
-    await this.listService.checkPassword(list, password);
 
     return this.listService.toggleFreeze(list);
   }
 
-  @Post(':uniqueUrl')
-  async findOne(
-    @Param('uniqueUrl') uniqueUrl: string,
-    @Body('password') password: string,
-  ) {
+  @UseGuards(PermissionGuard(ListProtection.ViewAccess))
+  @Get(':uniqueUrl')
+  async findOne(@Param('uniqueUrl') uniqueUrl: string) {
     const list = await this.listService.findOne(uniqueUrl);
-
-    if (list.protection === ListProtection.PasswordProtected) {
-      const passwordCheck = await this.listService.checkPassword(
-        list,
-        password,
-        false,
-      );
-
-      if (!passwordCheck) {
-        return { protection: 3 };
-      }
-    }
 
     return plainToInstance(List, list);
   }
 
+  @UseGuards(PermissionGuard(ListProtection.PasswordProtected))
   @Delete(':uniqueUrl')
-  async delete(
-    @Param('uniqueUrl') uniqueUrl: string,
-    @Body('password') password: string,
-  ) {
-    const list = await this.listService.findOne(uniqueUrl);
-    await this.listService.checkPassword(list, password);
-
+  async delete(@Param('uniqueUrl') uniqueUrl: string) {
     return this.listService.delete(uniqueUrl);
   }
 }

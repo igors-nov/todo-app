@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import socket from '../socket';
 import { SimpleTreeItemWrapper, SortableTree } from 'dnd-kit-sortable-tree';
 import SubTaskModal from '../components/SubTaskModal';
 import DeleteModal from '../components/DeleteModal';
@@ -11,8 +10,26 @@ import PasswordModal from '../components/PasswordModal';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import DescriptionModal from '../components/DescriptionModal';
 import TreeTask from '../components/TreeTask';
+import { io } from 'socket.io-client';
+
+const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const TodoList = () => {
+  const [accessToken, setAccessToken] = useState(null);
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    const newSocket = io(backendUrl, {
+      auth: { accessToken },
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [accessToken]);
+
   const navigate = useNavigate();
   const { uniqueUrl } = useParams();
   const [todos, setTodos] = useState([]);
@@ -23,39 +40,41 @@ const TodoList = () => {
   const [addSubtaskModal, setAddSubtaskModal] = useState(null);
   const [deleteTaskModal, setDeleteTaskModal] = useState(null);
   const [password, setPassword] = useState('');
-  const [passwordAccepted, setPasswordAccepted] = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
   const [deleteListModal, setDeleteListModal] = useState(false);
 
   useEffect(() => {
     if (uniqueUrl) {
       listService
-        .findOne(uniqueUrl, password)
+        .findOne(uniqueUrl, accessToken)
         .then(data => {
-          if (data.protection === 3 && !passwordAccepted) {
-            setPasswordModal(true);
-            return;
-          }
           setList(data);
         })
-        .catch(() => {
-          toast.error('List not found', { toastId: 'error-list' });
+        .catch(e => {
+          try {
+            const parsed = JSON.parse(e.message);
+            if (parsed.statusCode === 401) {
+              setPasswordModal(true);
+              return;
+            }
+            throw new Error('not found');
+          } catch {
+            toast.error('List not found', { toastId: 'error-list' });
+          }
         });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uniqueUrl, passwordAccepted]);
+  }, [uniqueUrl, accessToken]);
 
   useEffect(() => {
     if (list?.id) {
       todoService
-        .findByList(list.id, password)
+        .findByList(list.id, accessToken)
         .then(data => setTodos(data))
         .catch(() => {
           toast.error('Todo tasks loading error', { toastId: 'error-todo' });
         });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list, passwordAccepted]);
+  }, [list, accessToken]);
 
   useEffect(() => {
     if (!list?.id) return;
@@ -121,7 +140,7 @@ const TodoList = () => {
   };
 
   const handleDragEnd = (items, reason) => {
-    if (!passwordAccepted && list.protection !== 1) {
+    if (!accessToken && list.protection !== 1) {
       toast.error('Please enter password before you will be able to sort', { toastId: 'password-sort-error' });
       return;
     }
@@ -133,11 +152,11 @@ const TodoList = () => {
 
     items = reason.droppedToParent ? findParentTask(items, reason.droppedToParent.id) : items;
 
-    socket.emit('orderTodo', { listId: list?.id, items, newParent: reason.droppedToParent ? reason.droppedToParent.id : null, password });
+    socket.emit('orderTodo', { listId: list?.id, items, newParent: reason.droppedToParent ? reason.droppedToParent.id : null });
   };
 
   const handleCreateTodo = (parentId = undefined) => {
-    if (!passwordAccepted && list.protection !== 1) {
+    if (!accessToken && list.protection !== 1) {
       toast.error('Please enter password before you will be able create new tasks', { toastId: 'password-task-error' });
       return;
     }
@@ -147,30 +166,30 @@ const TodoList = () => {
       return;
     }
 
-    socket.emit('createTodo', { title: newTodo, listId: list?.id, parentId, password: password });
+    socket.emit('createTodo', { title: newTodo, listId: list?.id, parentId });
     setNewTodo('');
   };
 
   const handleUpdateTodo = (id, completed) => {
-    if (!passwordAccepted && list.protection !== 1) {
+    if (!accessToken && list.protection !== 1) {
       toast.error('Please enter password before you will be able update tasks', { toastId: 'password-update-task-error' });
       return;
     }
 
-    socket.emit('updateTodo', { id, completed: !completed, listId: list?.id, password });
+    socket.emit('updateTodo', { id, completed: !completed, listId: list?.id });
   };
 
   const handleDeleteTodo = id => {
-    if (!passwordAccepted && list.protection !== 1) {
+    if (!accessToken && list.protection !== 1) {
       toast.error('Please enter password before you will be able delete tasks', { toastId: 'password-delete-task-error' });
       return;
     }
 
-    socket.emit('deleteTodo', { id, listId: list?.id, password });
+    socket.emit('deleteTodo', { id, listId: list?.id });
   };
 
   const handleEditDescription = (id, description) => {
-    if ((list.protection !== 1 && !passwordAccepted) || list.frozen) {
+    if ((list.protection !== 1 && !accessToken) || list.frozen) {
       return;
     }
 
@@ -179,32 +198,39 @@ const TodoList = () => {
   };
 
   const handleSaveDescription = id => {
-    if (!passwordAccepted && list.protection !== 1) {
+    if (!accessToken && list.protection !== 1) {
       toast.error('Please enter password before you will be able update tasks', { toastId: 'password-update-task-error' });
       return;
     }
 
-    socket.emit('updateTodo', { id, listId: list?.id, description: tempDescription, password });
+    socket.emit('updateTodo', { id, listId: list?.id, description: tempDescription });
     setEditingDescriptionId(null);
   };
 
   const handlePasswordCheck = () => {
-    listService.passwordCheck(uniqueUrl, password).then(data => {
-      if (data) {
-        toast.success('Successfully logged in');
-        setPasswordAccepted(true);
-        setPasswordModal(false);
-        return;
-      }
+    listService
+      .login(uniqueUrl, password)
+      .then(data => {
+        console.log(data);
+        if (data.access_token) {
+          toast.success('Successfully logged in');
+          setAccessToken(data.access_token);
+          setPasswordModal(false);
+          return;
+        }
 
-      toast.error('Wrong password provided', { toastId: 'wrong-password' });
-      setPassword('');
-    });
+        toast.error('Wrong password provided', { toastId: 'wrong-password' });
+        setPassword('');
+      })
+      .catch(() => {
+        toast.error('Wrong password provided', { toastId: 'wrong-password' });
+        setPassword('');
+      });
   };
 
   const handleDeleteList = () => {
     listService
-      .deleteList(uniqueUrl, password)
+      .deleteList(uniqueUrl, accessToken)
       .then(res => {
         if (res.ok) {
           toast.success('Deleted successfully');
@@ -219,12 +245,12 @@ const TodoList = () => {
   };
 
   const handleFreezeList = () => {
-    if (!passwordAccepted && list.protection !== 1) {
+    if (!accessToken && list.protection !== 1) {
       toast.error('Please enter password before you will be able freeze list', { toastId: 'password-freeze-error' });
       return;
     }
 
-    socket.emit('toggleFreezeList', { listId: list?.id, password });
+    socket.emit('toggleFreezeList', { listId: list?.id });
   };
 
   const treeItem = React.forwardRef((props, ref) => {
@@ -236,7 +262,7 @@ const TodoList = () => {
         <TreeTask
           list={list}
           todo={todo}
-          passwordAccepted={passwordAccepted}
+          passwordAccepted={accessToken}
           handleUpdateTodo={handleUpdateTodo}
           setAddSubtaskModal={setAddSubtaskModal}
           setDeleteTaskModal={setDeleteTaskModal}
@@ -254,7 +280,7 @@ const TodoList = () => {
           <h1 className="text-3xl font-bold mb-6">{list.name}</h1>
           <div className="bg-white p-6 rounded shadow">
             <div className="mb-4">
-              {!passwordAccepted && (
+              {!accessToken && (
                 <>
                   <button onClick={() => setPasswordModal(true)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-300">
                     Login With Password
@@ -267,7 +293,7 @@ const TodoList = () => {
                   </div>
                 </>
               )}
-              {passwordAccepted && (
+              {accessToken && (
                 <>
                   <button onClick={() => setDeleteListModal(true)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-500">
                     Delete List
@@ -282,7 +308,7 @@ const TodoList = () => {
               )}
             </div>
 
-            {(list.protection === 1 || passwordAccepted) && !list.frozen && (
+            {(list.protection === 1 || accessToken) && !list.frozen && (
               <>
                 <div className="mb-4">
                   <input type="text" value={newTodo} onChange={e => setNewTodo(e.target.value)} placeholder="New task" className="w-full p-2 border rounded" />

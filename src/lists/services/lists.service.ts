@@ -5,15 +5,17 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
-import { List, ListProtection } from '../entities/list.entity';
+import { List } from '../entities/list.entity';
 import * as bcrypt from 'bcrypt';
 import { CreateListDto } from '../dto/createList.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class ListService {
   constructor(
     @InjectRepository(List)
     private readonly listRepository: Repository<List>,
+    private jwtService: JwtService,
   ) {}
 
   async create(newList: CreateListDto): Promise<List> {
@@ -45,7 +47,7 @@ export class ListService {
       throw new NotFoundException();
     }
 
-    return list;
+    return list || null;
   }
 
   async findOneById(id: string): Promise<List> {
@@ -85,15 +87,14 @@ export class ListService {
     return this.listRepository.update(list.id, { frozen: !list.frozen });
   }
 
-  async checkListEditProtection(id: string, password: string) {
-    const list = await this.findOneById(id);
+  async login(list: List, password: string): Promise<{ access_token: string }> {
+    await this.checkPassword(list, password);
 
-    if (
-      [ListProtection.PasswordProtected, ListProtection.ViewAccess].some(
-        (prot) => prot === list.protection,
-      )
-    ) {
-      await this.checkPassword(list, password || '');
-    }
+    return {
+      access_token: await this.jwtService.signAsync({
+        id: list.id,
+        uniqueUrl: list.uniqueUrl,
+      }),
+    };
   }
 }

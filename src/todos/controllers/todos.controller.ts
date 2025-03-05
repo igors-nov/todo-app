@@ -1,26 +1,15 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { TodoService } from '../services/todos.service';
-import { ListService } from '../../lists/services/lists.service';
 import { ListProtection } from 'src/lists/entities/list.entity';
+import { PermissionGuard } from 'src/auth/permission.guard';
 
 @Controller('todos')
 export class TodoController {
-  constructor(
-    private readonly todoService: TodoService,
-    private readonly listService: ListService,
-  ) {}
+  constructor(private readonly todoService: TodoService) {}
 
-  @Post(':listId')
-  async findAll(
-    @Param('listId') listId: string,
-    @Body('password') password: string,
-  ) {
-    const list = await this.listService.findOneById(listId);
-
-    if (list.protection === ListProtection.PasswordProtected) {
-      await this.listService.checkPassword(list, password);
-    }
-
+  @UseGuards(PermissionGuard(ListProtection.ViewAccess))
+  @Get(':listId')
+  async findAll(@Param('listId') listId: string) {
     return this.todoService.findAll(listId);
   }
 }

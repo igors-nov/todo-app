@@ -8,6 +8,9 @@ import { Server } from 'socket.io';
 import { TodoService } from '../services/todos.service';
 import { Todo } from '../entities/todo.entity';
 import { ListService } from '../../lists/services/lists.service';
+import { UseGuards } from '@nestjs/common';
+import { SocketGuard } from 'src/auth/socket.guard';
+import { ListProtection } from 'src/lists/entities/list.entity';
 
 //TODO: Setup cors correctly
 @WebSocketGateway({ cors: true })
@@ -20,6 +23,7 @@ export class TodoGateway {
     private readonly listService: ListService,
   ) {}
 
+  @UseGuards(SocketGuard(ListProtection.FullAccess))
   @SubscribeMessage('createTodo')
   async handleCreateTodo(
     @MessageBody()
@@ -28,7 +32,6 @@ export class TodoGateway {
       listId: string;
       parentId?: string;
       description?: string;
-      password?: string;
     },
   ) {
     if (!data.title || data.title.length === 0) {
@@ -37,11 +40,6 @@ export class TodoGateway {
         'Task title can not be empty',
       );
     }
-
-    await this.listService.checkListEditProtection(
-      data.listId,
-      data.password || '',
-    );
 
     const todo = await this.todoService.create(
       data.title,
@@ -59,6 +57,7 @@ export class TodoGateway {
     }
   }
 
+  @UseGuards(SocketGuard(ListProtection.FullAccess))
   @SubscribeMessage('updateTodo')
   async handleUpdateTodo(
     @MessageBody()
@@ -67,14 +66,8 @@ export class TodoGateway {
       completed: boolean;
       listId: string;
       description?: string;
-      password?: string;
     },
   ) {
-    await this.listService.checkListEditProtection(
-      data.listId,
-      data.password || '',
-    );
-
     const todo = await this.todoService.update(
       data.id,
       data.completed,
@@ -84,20 +77,15 @@ export class TodoGateway {
     return this.server.emit(`list:${todo.list.id}:todoUpdated`, todo);
   }
 
+  @UseGuards(SocketGuard(ListProtection.FullAccess))
   @SubscribeMessage('deleteTodo')
-  async handleDeleteTodo(
-    @MessageBody() data: { id: string; listId: string; password?: string },
-  ) {
-    await this.listService.checkListEditProtection(
-      data.listId,
-      data.password || '',
-    );
-
+  async handleDeleteTodo(@MessageBody() data: { id: string; listId: string }) {
     await this.todoService.delete(data.id);
 
     return this.server.emit(`list:${data.listId}:todoDeleted`, data.id);
   }
 
+  @UseGuards(SocketGuard(ListProtection.FullAccess))
   @SubscribeMessage('orderTodo')
   async handleOrderTodo(
     @MessageBody()
@@ -105,31 +93,23 @@ export class TodoGateway {
       listId: string;
       items: Todo[];
       newParent: string | null;
-      password?: string;
     },
   ) {
-    await this.listService.checkListEditProtection(
-      data.listId,
-      data.password || '',
-    );
-
     await this.todoService.reorderTasks(data.items, data.newParent);
     const todos = await this.todoService.findAll(data.listId);
 
     return this.server.emit(`list:${data.listId}:todoReordered`, todos);
   }
 
+  @UseGuards(SocketGuard(ListProtection.PasswordProtected))
   @SubscribeMessage('toggleFreezeList')
   async toggleFreezeList(
     @MessageBody()
     data: {
       listId: string;
-      password: string;
     },
   ) {
     const list = await this.listService.findOneById(data.listId);
-    await this.listService.checkPassword(list, data.password);
-
     await this.listService.toggleFreeze(list);
 
     return this.server.emit(`list:${list.id}:freezeToggle`, {
